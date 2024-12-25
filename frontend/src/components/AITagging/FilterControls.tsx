@@ -16,15 +16,15 @@ import { ListOrderedIcon } from '../ui/Icons/Icons';
 import DeleteSelectedImagePage from '../FolderPicker/DeleteSelectedImagePage';
 import ErrorDialog from '../Album/Error';
 
-
 interface FilterControlsProps {
   filterTag: string;
   setFilterTag: (tag: string) => void;
   mediaItems: MediaItem[];
   onFolderAdded: () => Promise<void>;
   isLoading: boolean;
-  isVisibleSelectedImage: boolean,
-  setIsVisibleSelectedImage : (value:boolean) => void;
+  isVisibleSelectedImage: boolean;
+  setIsVisibleSelectedImage: (value: boolean) => void;
+  refetchImages: () => Promise<void>;
 }
 
 export default function FilterControls({
@@ -34,7 +34,8 @@ export default function FilterControls({
   onFolderAdded,
   isLoading,
   isVisibleSelectedImage,
-  setIsVisibleSelectedImage
+  setIsVisibleSelectedImage,
+  refetchImages,
 }: FilterControlsProps) {
   const {
     addFolder,
@@ -49,11 +50,11 @@ export default function FilterControls({
       .sort();
   }, [mediaItems]);
 
- 
   const handleFolderPick = async (path: string) => {
     try {
       await addFolder(path);
       await onFolderAdded();
+      await refetchImages();
     } catch (error) {
       console.error('Error adding folder:', error);
     }
@@ -72,19 +73,17 @@ export default function FilterControls({
     });
   };
 
-
   if (!isVisibleSelectedImage) {
     return (
       <div>
         <DeleteSelectedImagePage
           setIsVisibleSelectedImage={setIsVisibleSelectedImage}
           onError={showErrorDialog}
+          refetchImages={refetchImages}
         />
       </div>
     );
   }
-  
-
 
   return (
     <>
@@ -94,8 +93,11 @@ export default function FilterControls({
       )}
       <div className="flex items-center gap-4 overflow-auto">
         <FolderPicker setFolderPath={handleFolderPick} />
-        
-        <Button onClick={() => setIsVisibleSelectedImage(false)} variant="outline">
+
+        <Button
+          onClick={() => setIsVisibleSelectedImage(false)}
+          variant="outline"
+        >
           Delete Image
         </Button>
         <DropdownMenu>
@@ -131,4 +133,3 @@ export default function FilterControls({
     </>
   );
 }
-

@@ -12,7 +12,11 @@ export default function AIGallery({
   type,
   folderPath,
 }: MediaGalleryProps & { folderPath: string }) {
-  const { images: mediaItems, loading } = useAIImage(folderPath);
+  const {
+    images: mediaItems,
+    loading,
+    refetchImages: refetchMediaItems,
+  } = useAIImage(folderPath);
   const [filterTag, setFilterTag] = useState<string>('');
   const [currentPage, setCurrentPage] = useState<number>(1);
   const [showMediaViewer, setShowMediaViewer] = useState<boolean>(false);
@@ -34,7 +38,7 @@ export default function AIGallery({
     const indexOfLastItem = currentPage * itemsPerPage;
     const indexOfFirstItem = indexOfLastItem - itemsPerPage;
     return filteredMediaItems.slice(indexOfFirstItem, indexOfLastItem);
-  }, [filteredMediaItems, currentPage, itemsPerPage]);
+  }, [filteredMediaItems, currentPage, itemsPerPage, mediaItems]);
 
   const totalPages = Math.ceil(filteredMediaItems.length / itemsPerPage);
 
@@ -53,13 +57,15 @@ export default function AIGallery({
     <div className="container">
       <div className="mx-auto max-w-6xl px-4 py-8 dark:bg-background dark:text-foreground md:px-6">
         <div className="mb-6 flex items-center justify-between">
-
-          {isVisibleSelectedImage && <h1 className="text-2xl font-bold">{title}</h1>}
+          {isVisibleSelectedImage && (
+            <h1 className="text-2xl font-bold">{title}</h1>
+          )}
           <FilterControls
             filterTag={filterTag}
             setFilterTag={setFilterTag}
             mediaItems={mediaItems}
             onFolderAdded={handleFolderAdded}
+            refetchImages={refetchMediaItems}
             isLoading={loading}
             isVisibleSelectedImage={isVisibleSelectedImage}
             setIsVisibleSelectedImage={setIsVisibleSelectedImage}
