@@ -6,7 +6,6 @@ import {
   Images,
   Settings,
   BookImage,
-  Lock,
 } from 'lucide-react';
 import { useState } from 'react';
 
@@ -46,7 +45,6 @@ const Sidebar = () => {
           { path: '/videos', label: 'Videos', Icon: Video },
           { path: '/albums', label: 'Albums', Icon: Images },
           { path: '/settings', label: 'Settings', Icon: Settings },
-          { path: '/secure-folder', label: 'Secure Folder', Icon: Lock },
           { path: '/memories', label: 'Memories', Icon: BookImage },
         ].map(({ path, label, Icon }) => (
           <Link

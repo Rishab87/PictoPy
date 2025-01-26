@@ -1,6 +1,5 @@
-import type { MediaViewProps } from '@/types/Media';
-import type React from 'react';
-import { useEffect, useState, useCallback } from 'react';
+import { MediaViewProps } from '@/types/Media';
+import React, { useEffect, useState, useCallback } from 'react';
 import {
   ChevronLeft,
   ChevronRight,
@@ -16,14 +15,12 @@ import {
   Heart,
   Play,
   Pause,
-  Lock,
   Divide,
 } from 'lucide-react';
-import ReactCrop, { type Crop } from 'react-image-crop';
+import ReactCrop, { Crop } from 'react-image-crop';
 import 'react-image-crop/dist/ReactCrop.css';
 import { invoke } from '@tauri-apps/api/core';
 import { readFile } from '@tauri-apps/plugin-fs';
-import { useNavigate } from 'react-router-dom';
 import NetflixStylePlayer from '../VideoPlayer/NetflixStylePlayer';
 
 const MediaView: React.FC<MediaViewProps> = ({
@@ -33,7 +30,6 @@ const MediaView: React.FC<MediaViewProps> = ({
   currentPage,
   itemsPerPage,
   type,
-  isSecureFolder,
 }) => {
   // State management
   const [globalIndex, setGlobalIndex] = useState<number>(
@@ -59,7 +55,6 @@ const MediaView: React.FC<MediaViewProps> = ({
     const saved = localStorage.getItem('pictopy-favorites');
     return saved ? JSON.parse(saved) : [];
   });
-  const navigate = useNavigate();
 
   useEffect(() => {
     setGlobalIndex((currentPage - 1) * itemsPerPage + initialIndex);
@@ -215,7 +210,7 @@ const MediaView: React.FC<MediaViewProps> = ({
       }
 
       ctx.filter = `${filter} brightness(${brightness}%) contrast(${contrast}%)`;
-      ctx.drawImage(canvas, 0, 0);
+      ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
 
       console.log('Canvas prepared, attempting to create blob');
 
@@ -232,28 +227,14 @@ const MediaView: React.FC<MediaViewProps> = ({
       const arrayBuffer = await editedBlob.arrayBuffer();
       const uint8Array = new Uint8Array(arrayBuffer);
 
-      if (isSecureFolder) {
-        // Save the edited image to a temporary location
-        const tempPath = await invoke<string>('save_temp_image', {
-          imageData: Array.from(uint8Array),
-          originalPath: allMedia[globalIndex].path,
-        });
-
-        // Move the temporary file to the secure folder
-        await invoke('move_to_secure_folder', {
-          path: tempPath,
-          password: prompt('Enter your secure folder password:'),
-        });
-      } else {
-        console.log('Invoking save_edited_image');
-        await invoke('save_edited_image', {
-          imageData: Array.from(uint8Array),
-          originalPath: allMedia[globalIndex].path,
-          filter,
-          brightness,
-          contrast,
-        });
-      }
+      console.log('Invoking save_edited_image');
+      await invoke('save_edited_image', {
+        imageData: Array.from(uint8Array),
+        originalPath: allMedia[globalIndex].path,
+        filter,
+        brightness,
+        contrast,
+      });
 
       console.log('Image saved successfully');
       showNotification('Image saved successfully', 'success');
@@ -273,7 +254,6 @@ const MediaView: React.FC<MediaViewProps> = ({
     allMedia,
     globalIndex,
     showNotification,
-    isSecureFolder,
   ]);
 
   const handleThumbnailClick = (index: number) => {
@@ -287,92 +267,16 @@ const MediaView: React.FC<MediaViewProps> = ({
 
   const isFavorite = (mediaUrl: string) => favorites.includes(mediaUrl);
 
-  const handleMoveToSecureFolder = async () => {
-    const currentMedia = allMedia[globalIndex];
-    if (!currentMedia || !currentMedia.path) return;
-
-    const secureFolderCreated = await invoke<boolean>(
-      'check_secure_folder_status',
-    );
-    if (!secureFolderCreated) {
-      navigate('/secure-folder');
-      return;
-    }
-
-    try {
-      const password = prompt('Enter your secure folder password:');
-      if (!password) return;
-
-      await invoke('move_to_secure_folder', {
-        path: currentMedia.path,
-        password,
-      });
-      showNotification('File moved to secure folder', 'success');
-      // Remove the moved item from allMedia
-      const newAllMedia = [...allMedia];
-      newAllMedia.splice(globalIndex, 1);
-      // Update allMedia state (you might need to lift this state up to a parent component)
-      // setAllMedia(newAllMedia);
-      if (newAllMedia.length === 0) {
-        onClose();
-      } else {
-        setGlobalIndex(Math.min(globalIndex, newAllMedia.length - 1));
-      }
-    } catch (error) {
-      showNotification(`Failed to move file: ${error}`, 'error');
-    }
-  };
-
   return (
     <div className="fixed inset-0 z-50 flex flex-col bg-black">
       <div className="absolute right-4 top-4 z-50 flex items-center gap-2">
-        {!isSecureFolder && (
-          <button
-            onClick={handleShare}
-            className="rounded-full bg-white/20 p-2 text-white transition-colors duration-200 hover:bg-white/40"
-            aria-label="Share"
-          >
-            <Share2 className="h-6 w-6" />
-          </button>
-        )}
-        {!isSecureFolder && (
-          <button
-            onClick={() => setIsEditing(true)}
-            className="rounded-full bg-white/20 p-2 text-white transition-colors duration-200 hover:bg-white/40"
-            aria-label="Edit"
-          >
-            <Edit className="h-6 w-6" />
-          </button>
-        )}
-        {!isSecureFolder && (
-          <button
-            onClick={handleMoveToSecureFolder}
-            className="rounded-full bg-white/20 p-2 text-white transition-colors duration-200 hover:bg-white/40"
-            aria-label="Move to Secure Folder"
-          >
-            <Lock className="h-6 w-6" />
-          </button>
-        )}
-        {!isSecureFolder && (
-          <button
-            onClick={toggleFavorite}
-            className={`rounded-full p-2 text-white transition-colors duration-300 ${
-              isFavorite(allMedia[globalIndex].path || '')
-                ? 'bg-red-500 hover:bg-red-600'
-                : 'bg-white/20 hover:bg-white/40'
-            }`}
-            aria-label={
-              isFavorite(allMedia[globalIndex].path || '')
-                ? 'Remove from favorites'
-                : 'Add to favorites'
-            }
-          >
-            <Heart
-              className={`h-6 w-6 ${isFavorite(allMedia[globalIndex].path || '') ? 'fill-current' : ''}`}
-            />
-          </button>
-        )}
         <button
+          onClick={handleShare}
+          className="rounded-full bg-white/20 p-2 text-white transition-colors duration-200 hover:bg-white/40"
+          aria-label="Share"
+        >
+          <Share2 className="h-6 w-6" />
+        </button>
         {type==="image"?(
           <button
           onClick={() => setIsEditing(true)}
@@ -384,6 +288,26 @@ const MediaView: React.FC<MediaViewProps> = ({
 
         ):null}
 
+        
+        <button
+          onClick={toggleFavorite}
+          className={`rounded-full p-2 text-white transition-colors duration-300 ${
+            isFavorite(allMedia[globalIndex].path || '')
+              ? 'bg-red-500 hover:bg-red-600'
+              : 'bg-white/20 hover:bg-white/40'
+          }`}
+          aria-label={
+            isFavorite(allMedia[globalIndex].path || '')
+              ? 'Remove from favorites'
+              : 'Add to favorites'
+          }
+        >
+          <Heart
+            className={`h-6 w-6 ${
+              isFavorite(allMedia[globalIndex].path || '') ? 'fill-current' : ''
+            }`}
+          />
+        </button>
         {type==="image"?(
 
           <button
@@ -433,7 +357,7 @@ const MediaView: React.FC<MediaViewProps> = ({
               >
                 <img
                   id="source-image"
-                  src={allMedia[globalIndex].url || '/placeholder.svg'}
+                  src={allMedia[globalIndex].url}
                   alt={`image-${globalIndex}`}
                   style={{
                     filter: `${filter} brightness(${brightness}%) contrast(${contrast}%)`,
@@ -442,7 +366,7 @@ const MediaView: React.FC<MediaViewProps> = ({
               </ReactCrop>
             ) : (
               <img
-                src={allMedia[globalIndex].url || '/placeholder.svg'}
+                src={allMedia[globalIndex].url}
                 alt={`image-${globalIndex}`}
                 draggable={false}
                 className="h-full w-full select-none object-contain"
@@ -583,7 +507,7 @@ const MediaView: React.FC<MediaViewProps> = ({
             )}
             {type === 'image' ? (
               <img
-                src={media.url || '/placeholder.svg'}
+                src={media.url}
                 alt={`thumbnail-${index}`}
                 className="h-full w-full object-cover"
               />
